@@ -5,13 +5,23 @@
 // TODO: Stubs should be written to call raylib functions
 
 // LICENSE
+
 // Copyright (c) 2026 "Hyper"
 // This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
 // Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
 // 1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
 // 2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
-// END
+
+// END OF LICENSE
+
+// 1.0.1 Update!
+
+// CHANGES:
+
+// Fixed A Bug with FsOPEN() That causes it to stop at EOF (debatably good or bad change)
+
+// END OF CHANGES
 
 #include "raylib.h"
 #include <iostream>
@@ -21,11 +31,11 @@ using namespace std;
 // PCL Specific
 
 bool expectPCLVersion(const char *version) {
-  return version == "1.0.0";
+  return version == "1.0.1";
 }
 
 const char* getPlatform() {
-  return "PCL 1.0.0-RLIB";
+  return "PCL 1.0.1-RLIB";
 }
 // Graphics Layer
 bool createWindow(int xSize, int ySize, const char *text) { // returns true if success
@@ -103,19 +113,13 @@ unsigned char fsByte(const char *fileName, int location) {
   return (unsigned char) val;
 }
 
-unsigned char* fsOpen(const char *fileName, unsigned int bytes, unsigned long offset) {
-  fstream file(fileName, ios_base::binary);
-  file.open(fileName);
-  file.seekg(offset);
-  char temp[bytes];
-  unsigned char* bytesVal = new unsigned char[bytes];
-  unsigned int i = 0;
-  file.read(temp, bytes);
-  for (;i < bytes; i++) {
-    bytesVal[i] = (unsigned char)temp[i];
+unsigned char* fsOpen(const char *fileName, int bytes, int offset) {
+  unsigned char *testArr = LoadFileData(fileName, &bytes + offset); // oh... thats how it works!
+  unsigned char* bytesRet = new unsigned char[bytes];
+  for (unsigned int i = 0;i < bytes; i++) {
+    bytesRet[i] = (unsigned char)testArr[i + offset];
   }
-  file.close();
-  return bytesVal;
+  return bytesRet;
 }
 
 unsigned char* fsReadUntilNull(const char *fileName, unsigned long offset) {
