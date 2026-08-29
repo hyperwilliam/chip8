@@ -227,7 +227,7 @@ void drawScreen(unsigned int x, unsigned int y, bool color) {
 }
 int main(int argc, char *argv[]) {
   const char *filename = "target.ch8";
-  if (argc >= 1) {
+  if (argc >= 2) {
     filename = argv[1];
   } else {
     filename = "target.ch8";
@@ -236,7 +236,6 @@ int main(int argc, char *argv[]) {
     printInfo("ANALYSER Started!");
   } else {
     printError("Input File Was not Found!");
-        cout << filename;
     return 0;
   }
   if (!createWindow(1024, 512, "Hyper's CHIP-8 Emulator!")) {
@@ -248,8 +247,9 @@ int main(int argc, char *argv[]) {
   for (unsigned int i = 0; i < 4096; i++) {
     chip.ram[i] = 0;
   }
+  unsigned char* fsTemp = fsOpen(filename, fsSize(filename), 0);
   for (unsigned int i = 0; i < fsSize(filename); i++) {
-    chip.ram[i + 0x200] = fsByte(filename, i);
+    chip.ram[i + 0x200] = fsTemp[i];
   }
   for (unsigned int i = 0; i < 16; i++) {
     chip.v[i] = 0;
