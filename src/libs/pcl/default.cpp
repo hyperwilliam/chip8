@@ -15,11 +15,11 @@
 
 // END OF LICENSE
 
-// 1.0.1 Update!
+// 1.1.0 Update!
 
 // CHANGES:
 
-// Fixed A Bug with FsOPEN() That causes it to stop at EOF (debatably good or bad change)
+// added keyboard input (sort of, i'll rewrite it eventually :/ )
 
 // END OF CHANGES
 
@@ -28,14 +28,16 @@
 #include <fstream>
 #include <filesystem>
 using namespace std;
+
+int keybinds[16] = {KEY_X, KEY_ONE, KEY_TWO, KEY_THREE, KEY_Q, KEY_W, KEY_E, KEY_A, KEY_S, KEY_D, KEY_Z, KEY_C, KEY_FOUR, KEY_R, KEY_F, KEY_V}; // its garbage, i know.
 // PCL Specific
 
 bool expectPCLVersion(const char *version) {
-  return version == "1.0.1";
+  return version == "1.1.0";
 }
 
 const char* getPlatform() {
-  return "PCL 1.0.1-RLIB";
+  return "PCL 1.1.0-RLIB";
 }
 // Graphics Layer
 bool createWindow(int xSize, int ySize, const char *text) { // returns true if success
@@ -138,6 +140,23 @@ unsigned char* fsReadUntilNull(const char *fileName, unsigned long offset) {
   file.close();
   return bytesVal;
 }
+// Keyboard
+bool keyGetD(unsigned char val) {
+  return IsKeyDown(keybinds[val]);
+}
+
+bool keyGetR(unsigned char val) {
+  return IsKeyReleased(keybinds[val]);
+}
+
+int isAKeyPressed() {
+  for (unsigned char i = 0; i < 16; i++) {
+    if (keyGetD(i)) {
+      return i;
+    }
+  }
+  return 0xFF;
+}
 
 // Terminal Layer (will be a stub on some systems that wont work with this)
 void printInfo(const char *text) {
@@ -152,3 +171,4 @@ void printError(const char *text) {
   TraceLog(LOG_ERROR, text);
   return;
 }
+
