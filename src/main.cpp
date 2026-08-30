@@ -1,4 +1,5 @@
 #include "libs/pcl/default.cpp" // Platform Compatibility Layer. Adjust for system target
+#include <cstdlib>
 struct pc {
   unsigned char v[16];
   unsigned char ram[4096];
@@ -9,6 +10,7 @@ struct pc {
   unsigned int index;
   unsigned char delay;
   unsigned char sound;
+  unsigned char waitforKey;
   bool keys[16];
   bool crash;
 }chip;
@@ -24,12 +26,19 @@ unsigned char read(int address, pc memory) {
   return memory.ram[address];
 }
 
+void setKeys(pc &chip) {
+  for (unsigned char i = 0; i < 16; i++)
+    chip.keys[i] = keyGetD(i);
+  return;
+}
+
 void parseOpc(pc &chip) {
   unsigned int opcode = read16(chip.pc, chip);
   unsigned int opcodeH = (opcode & 0xF000) >> 12;
   unsigned int opcodeHL = (opcode & 0xF00) >> 8;
   unsigned int opcodeLH = (opcode & 0xF0) >> 4;
   unsigned int opcodeL = (opcode & 0xF);
+    cout << "PC: " << chip.pc << "\n" << "OPCODE: " << opcode << "\n";
   if (opcode == 0x00E0) {
     for (unsigned int i = 0; i < 2048; i++) {
       chip.frame[i] = false;
@@ -62,18 +71,28 @@ void parseOpc(pc &chip) {
       chip.ram[chip.index] = (chip.v[opcodeHL] / 100) % 10;
       return;
     }
+    if ((opcode & 0xFF) == 0x29) {
+      chip.index = 0x50 + (chip.v[opcodeHL] * 5);
+      return;
+    }
     if ((opcode & 0xFF) == 0x1E) {
       chip.index += chip.v[opcodeHL];
       chip.pc &= 0xFFF;
       return;
     }
+    if ((opcode & 0xFF) == 0x18) {
+      chip.sound = chip.v[opcodeHL];
+      return;
+    }
     if ((opcode & 0xFF) == 0x15) {
-      cout << (unsigned int)chip.v[opcodeHL] << " " << (unsigned int)chip.delay << "\n";
       chip.delay = chip.v[opcodeHL];
       return;
     }
-    if ((opcode & 0xFF) == 0x07) { // its a bit, broken ...
-      cout << (unsigned int)chip.v[opcodeHL] << " " << (unsigned int)chip.delay << "\n";
+    if ((opcode & 0xFF) == 0x0A) {
+      chip.waitforKey = opcodeHL;
+      return;
+    }
+    if ((opcode & 0xFF) == 0x07) {
       chip.v[opcodeHL] = chip.delay;
       return;
     }
@@ -98,7 +117,7 @@ void parseOpc(pc &chip) {
     for (unsigned char byte = 0; byte < opcodeL; byte++) {
       unsigned char byteVal = read(chip.index + byte, chip);
       for (unsigned char bit = 0; bit < 8; bit++) {
-        drawPtr = (chip.v[opcodeHL] & 63) + ((chip.v[opcodeLH] + byte) * 64) + bit;
+        drawPtr = ((chip.v[opcodeHL] + bit) % 64) + (((chip.v[opcodeLH] + byte) % 32) * 64);
         if (chip.frame[drawPtr] == 1) {
           chip.v[0xF] = 1;
         }
@@ -106,6 +125,10 @@ void parseOpc(pc &chip) {
         //cout << "x";
       }
     }
+    return;
+  }
+  if (opcodeH == 0xC) {
+    chip.v[opcodeHL] = rand() % ((opcode & 0xFF) + 1);
     return;
   }
   if (opcodeH == 0xB) {
@@ -131,14 +154,17 @@ void parseOpc(pc &chip) {
     }
     if (opcodeL == 1) {
       chip.v[opcodeHL] |= chip.v[opcodeLH];
+      chip.v[0xF] = 0;
       return;
     }
     if (opcodeL == 2) {
       chip.v[opcodeHL] &= chip.v[opcodeLH];
+      chip.v[0xF] = 0;
       return;
     }
     if (opcodeL == 3) {
       chip.v[opcodeHL] ^= chip.v[opcodeLH];
+      chip.v[0xF] = 0;
       return;
     }
     if (opcodeL == 4) {
@@ -210,7 +236,7 @@ void parseOpc(pc &chip) {
     return;
   }
   printError("FATAL! Invalid Opcode Exception");
-  cout << chip.pc << "\n" << opcode << "\n";
+  cout << "PC: " << chip.pc << "\n" << "OPCODE: " << opcode << "\n";
   chip.crash = true;
   return;
 }
@@ -254,6 +280,9 @@ int main(int argc, char *argv[]) {
   for (unsigned int i = 0; i < 16; i++) {
     chip.v[i] = 0;
   }
+  for (unsigned int i = 0; i < 16; i++) {
+    chip.keys[i] = 0;
+  }
   unsigned char font[80] =
   {
     0xF0, 0x90, 0x90, 0x90, 0xF0,
@@ -276,23 +305,39 @@ int main(int argc, char *argv[]) {
   for (unsigned int i = 0; i < 80; i++) {
     chip.ram[i + 0x50] = font[i];
   }
-  chip.ram[0x1FF] = 1;
+  for (unsigned int i = 0; i < 2048; i++) {
+    chip.frame[i] = false;
+  }
   chip.delay = 0;
   chip.sound = 0;
   chip.pc = 0x200;
   chip.sp = 15;
   chip.crash = false;
+  chip.waitforKey = 0xFF;
   while(ifWinClose()) {
     drawStart();
     clearBG(BLACK);
     for (unsigned char i = 0; i < 12; i++) {
+      setKeys(chip);
+      if (chip.waitforKey != 0xFF) {
+        if (isAKeyPressed() != 0xFF) {
+          chip.v[chip.waitforKey] = isAKeyPressed();
+          chip.waitforKey = 0xFF;
+        }
+      } else {
       if (!chip.crash) {
         parseOpc(chip);
         chip.pc += 2;
         chip.pc &= 0xFFF;
       }
+      }
       if (chip.delay) {
         chip.delay -= 1;
+      }
+      if (chip.sound) {
+        chip.sound -= 1;
+        if (chip.sound == 0);
+          printInfo("Audio Stub because i dont know how to make audio :(");
       }
     }
     for (char y = 0; y < 32; y++) {
